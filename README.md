@@ -1,0 +1,1 @@
+sudo LOGXI=main=INF ./go-bbq-monitor 
