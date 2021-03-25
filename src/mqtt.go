@@ -6,15 +6,12 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
-	// "time"
-
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var rootCert = "certs/AmazonRootCA1.pem"
-var thingCertificate = "certs/certificate.pem.crt"
-var privateKey = "certs/private.pem.key"
+var rootCert = "../certs/AmazonRootCA1.pem"
+var thingCertificate = "../certs/certificate.pem.crt"
+var privateKey = "../certs/private.pem.key"
 var brokerUri = "tls://a1r930ukf7ddm6-ats.iot.eu-west-1.amazonaws.com:8883"
 
 // Adapted from https://github.com/eclipse/paho.mqtt.golang/blob/master/cmd/ssl/main.go
@@ -58,7 +55,7 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 func createMqttClient() mqtt.Client {
 	tlsconfig, err := NewTLSConfig()
 	if err != nil {
-		log.Fatalf("failed to create TLS configuration: %v", err)
+		logger.Fatal("failed to create TLS configuration: %v", err)
 	}
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(brokerUri)
@@ -68,36 +65,8 @@ func createMqttClient() mqtt.Client {
 	// Start the connection.
 	c := mqtt.NewClient(opts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("failed to create connection: %v", token.Error())
+		logger.Fatal("failed to create connection: %v", token.Error())
 	}
 
 	return c
 }
-
-/*
-func upd() {
-		// Send shadow update.
-		update := `{
-			"state": {
-					"desired" : {
-							"color" : { "r" : 10 },
-							"engine" : "ON"
-					}
-			}
-	}`
-		fmt.Println("Sending update.")
-		if token := c.Publish("$aws/things/iotexample/shadow/update", 0, false, update); token.Wait() && token.Error() != nil {
-			log.Fatalf("failed to send update: %v", token.Error())
-		}
-	
-		fmt.Println("Listening for new events.")
-		if token := c.Subscribe("$aws/things/iotexample/shadow/update/accepted", 0, nil); token.Wait() && token.Error() != nil {
-			log.Fatalf("failed to create subscription: %v", token.Error())
-		}
-	
-		fmt.Println("Sleeping.")
-		time.Sleep(time.Second * 60)
-		fmt.Println("Disconnecting.")
-		c.Disconnect(250)
-}
-*/
