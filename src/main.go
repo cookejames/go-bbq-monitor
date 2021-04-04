@@ -39,7 +39,7 @@ func temperatureReceived(temperatures []float64) {
 	}
 	
 	if (changed) {
-		update := fmt.Sprintf("{\"state\": {\"reported\" : {\"temperature1\" : %d, \"temperature2\" : %d, \"temperature3\" : %d, \"temperature4\" : %d } } }", currentTemperatures[0], currentTemperatures[1], currentTemperatures[2], currentTemperatures[3])
+		update := fmt.Sprintf(`{"state": {"reported" : {"temperature1" : %d, "temperature2" : %d, "temperature3" : %d, "temperature4" : %d } } }`, currentTemperatures[0], currentTemperatures[1], currentTemperatures[2], currentTemperatures[3])
 		logger.Info("Temperature changed sending update: ", update)
 		if token := mqttClient.Publish(fmt.Sprintf("$aws/things/%s/shadow/name/temperature/update", thingName), 0, false, update); token.Wait() && token.Error() != nil {
 			logger.Fatal("Failed to publish to MQTT: %v", token.Error())
@@ -53,7 +53,7 @@ func batteryLevelReceived(batteryLevel int) {
 }
 func statusUpdated(status ibbq.Status) {
 	logger.Info("iBBQ status updated", "status", status)
-	update := fmt.Sprintf("{\"state\": {\"reported\" : {\"connection\" : \"%s\" } } }", status)
+	update := fmt.Sprintf(`{"state": {"reported" : {"connection" : "%s" } } }`, status)
 	if token := mqttClient.Publish(fmt.Sprintf("$aws/things/%s/shadow/name/connection/update", thingName), 0, false, update); token.Wait() && token.Error() != nil {
 		logger.Fatal("Failed to publish to MQTT: %v", token.Error())
 	}
@@ -79,7 +79,7 @@ func main() {
 	ctx := ble.WithSigHandler(ctx1, cancel)
 	logger.Debug("context initialized")
 
-  mqttClient = createMqttClient()
+  mqttClient = createMqttClient(thingName)
 	logger.Info("MQTT Client connected")
 
 	var bbq ibbq.Ibbq

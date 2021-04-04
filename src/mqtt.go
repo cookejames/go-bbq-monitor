@@ -1,11 +1,11 @@
 package main
 
-
 import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -52,7 +52,7 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
-func createMqttClient() mqtt.Client {
+func createMqttClient(thingName string) mqtt.Client {
 	tlsconfig, err := NewTLSConfig()
 	if err != nil {
 		logger.Fatal("failed to create TLS configuration: %v", err)
@@ -61,6 +61,7 @@ func createMqttClient() mqtt.Client {
 	opts.AddBroker(brokerUri)
 	opts.SetClientID("clientID").SetTLSConfig(tlsconfig)
 	opts.SetDefaultPublishHandler(f)
+	opts.SetWill(fmt.Sprintf("bbqmonitor/connection/%s/updates", thingName), `{"state": {"reported": {"connection": "Disconnected"}}}`, 1, false)
 
 	// Start the connection.
 	c := mqtt.NewClient(opts)
