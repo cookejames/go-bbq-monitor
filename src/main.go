@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
-	"fmt"
-	"github.com/go-ble/ble"
-	"github.com/mgutz/logxi/v1"
-	"github.com/sworisbreathing/go-ibbq/v2"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/go-ble/ble"
+	log "github.com/mgutz/logxi/v1"
+	"github.com/sworisbreathing/go-ibbq/v2"
 )
 
 var logger = log.New("main")
@@ -17,35 +19,41 @@ var currentTemperatures []int16
 var thingName = "inkbird-4xs"
 
 func parseTemperature(temperature float64) int16 {
-  if (int16(temperature) == 6552) {
-    return -1
-  } else {
-    return int16(temperature)
-  }
+	if int16(temperature) == 6552 {
+		return 0
+	} else {
+		return int16(temperature)
+	}
 }
 func temperatureReceived(temperatures []float64) {
 	logger.Info("Temperature reading received")
-	if (len(currentTemperatures) != len(temperatures)) {
+	if len(currentTemperatures) != len(temperatures) {
 		currentTemperatures = make([]int16, len(temperatures))
 	}
 
 	changed := false
 	for i, temperature := range temperatures {
-    parsedTemp := parseTemperature(temperature)
-		if (currentTemperatures[i] != parsedTemp) {
+		parsedTemp := parseTemperature(temperature)
+		if currentTemperatures[i] != parsedTemp {
 			changed = true
 			currentTemperatures[i] = parsedTemp
 		}
 	}
-	
-	if (changed) {
-		update := fmt.Sprintf(`{"state": {"reported" : {"temperature1" : %d, "temperature2" : %d, "temperature3" : %d, "temperature4" : %d } } }`, currentTemperatures[0], currentTemperatures[1], currentTemperatures[2], currentTemperatures[3])
+
+	if changed {
+		state := &TemperatureState{}
+		state.State.Reported.Temperature1 = currentTemperatures[0]
+		state.State.Reported.Temperature2 = currentTemperatures[1]
+		state.State.Reported.Temperature3 = currentTemperatures[2]
+		state.State.Reported.Temperature4 = currentTemperatures[3]
+
+		update, _ := json.Marshal(state)
 		logger.Info("Temperature changed sending update: ", update)
 		if token := mqttClient.Publish(fmt.Sprintf("$aws/things/%s/shadow/name/temperature/update", thingName), 0, false, update); token.Wait() && token.Error() != nil {
 			logger.Fatal("Failed to publish to MQTT: %v", token.Error())
 		}
 	} else {
-		logger.Info("No temperature change") 
+		logger.Info("No temperature change")
 	}
 }
 func batteryLevelReceived(batteryLevel int) {
@@ -53,7 +61,9 @@ func batteryLevelReceived(batteryLevel int) {
 }
 func statusUpdated(status ibbq.Status) {
 	logger.Info("iBBQ status updated", "status", status)
-	update := fmt.Sprintf(`{"state": {"reported" : {"connection" : "%s" } } }`, status)
+	state := &ConnectionState{}
+	state.State.Reported.Connection = string(status)
+	update, _ := json.Marshal(state)
 	if token := mqttClient.Publish(fmt.Sprintf("$aws/things/%s/shadow/name/connection/update", thingName), 0, false, update); token.Wait() && token.Error() != nil {
 		logger.Fatal("Failed to publish to MQTT: %v", token.Error())
 	}
@@ -79,7 +89,7 @@ func main() {
 	ctx := ble.WithSigHandler(ctx1, cancel)
 	logger.Debug("context initialized")
 
-  mqttClient = createMqttClient(thingName)
+	mqttClient = createMqttClient(thingName)
 	logger.Info("MQTT Client connected")
 
 	var bbq ibbq.Ibbq
